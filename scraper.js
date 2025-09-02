@@ -112,14 +112,29 @@ async function checkJobs() {
 
 // Send startup notification
 async function sendStartupNotification() {
-  const startupMsg = `🟢 Amazon Job Monitor Started\n\n📊 **Configuration:**\n• Check interval: ${config.CHECK_INTERVAL / 1000}s\n• Monitoring: Richmond, Delta, Vancouver area\n• Job types: Any employment type\n\n⏰ Started at: ${new Date().toLocaleString('en-CA', { timeZone: 'America/Vancouver' })}`;
-  await sendTelegramAlert(startupMsg);
+  try {
+    const startupMsg = `🟢 Amazon Job Monitor Started\n\n📊 **Configuration:**\n• Check interval: ${config.CHECK_INTERVAL / 1000}s\n• Monitoring: Richmond, Delta, Vancouver area\n• Job types: Any employment type\n\n⏰ Started at: ${new Date().toLocaleString('en-CA', { timeZone: 'America/Vancouver' })}`;
+    await sendTelegramAlert(startupMsg);
+  } catch (err) {
+    console.log("Startup notification failed, but continuing...", err.message);
+  }
 }
+
+// Global error handlers to prevent crashes
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // Don't exit, keep running
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+  // Don't exit, keep running
+});
 
 // Run continuously
 console.log(`⏳ Starting Amazon job watcher (interval: ${config.CHECK_INTERVAL / 1000}s)...`);
 sendStartupNotification();
 setInterval(checkJobs, config.CHECK_INTERVAL);
 
-// First run immediately
+// First run immediately  
 checkJobs();
