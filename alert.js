@@ -75,44 +75,46 @@ async function sendJobAlert(message) {
   }
 }
 
-// Take screenshot of job posting
-async function takeJobScreenshot(jobId) {
-  let browser;
+// Generate text-based job summary (no browser automation)
+async function generateJobSummary(job) {
   try {
-    console.log(`📸 Taking screenshot for job ${jobId}`);
+    console.log(`📝 Generating text summary for job ${job.jobId}`);
     
-    browser = await chromium.launch({ 
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'] // Railway compatibility
-    });
+    // Extract job details from API response (no browser needed)
+    const summary = `
+============================================
+🔎 AMAZON JOB DETAILS
+============================================
+
+📋 POSITION INFORMATION:
+• Title: ${job.jobTitle}
+• Type: ${job.employmentType || 'Not specified'}
+• Location: ${job.locationName}, ${job.city || 'Unknown'}
+• Job ID: ${job.jobId}
+
+💰 COMPENSATION:
+• Pay Rate: $${job.totalPayRateMin}-${job.totalPayRateMax}/hour
+
+🔗 APPLICATION:
+• Apply directly: https://hiring.amazon.ca/app#/jobDetail/${job.jobId}
+• Application deadline: Typically 24-48 hours from posting
+
+⚠️ NOTE: Amazon jobs often disappear quickly.
+• Apply immediately for best chances
+• Have resume ready before clicking link
+• Complete application in one session
+============================================`;
     
-    const page = await browser.newPage();
-    const jobUrl = `https://hiring.amazon.ca/app#/jobDetail/${jobId}`;
-    
-    await page.goto(jobUrl, { waitUntil: 'networkidle', timeout: 30000 });
-    await page.waitForTimeout(3000); // Wait for dynamic content
-    
-    const screenshot = await page.screenshot({ 
-      path: `job-${jobId}.png`,
-      fullPage: true,
-      type: 'png'
-    });
-    
-    console.log(`✅ Screenshot saved: job-${jobId}.png`);
-    return `job-${jobId}.png`;
-    
+    console.log(`✅ Text summary generated for ${job.jobId}`);
+    return summary;
   } catch (err) {
-    console.error(`❌ Screenshot failed for job ${jobId}:`, err.message);
-    return null;
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
+    console.error(`❌ Summary generation failed for job ${job.jobId}:`, err.message);
+    return `Failed to generate summary for job ${job.jobId}. Please check the job details manually.`;
   }
 }
 
-// Send job alert with screenshot
-async function sendJobAlertWithScreenshot(message, jobId) {
+// Send job alert with detailed text summary (no browser automation)
+async function sendJobAlertWithSummary(message, job) {
   try {
     // Validate required variables
     if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID_JOBS) {
@@ -120,40 +122,36 @@ async function sendJobAlertWithScreenshot(message, jobId) {
       return;
     }
     
-    // 1. Send text message first
+    // 1. Send compact job alert first
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       chat_id: TELEGRAM_CHAT_ID_JOBS,
       text: `🚨 Amazon Job Alert 🚨\n${message}`,
       parse_mode: "Markdown"
     });
     
-    // 2. Take and send screenshot
-    const screenshotPath = await takeJobScreenshot(jobId);
+    // 2. Generate and send detailed text summary 
+    const jobSummary = await generateJobSummary(job);
     
-    if (screenshotPath && fs.existsSync(screenshotPath)) {
-      const formData = new FormData();
-      formData.append('chat_id', TELEGRAM_CHAT_ID_JOBS);
-      formData.append('photo', fs.createReadStream(screenshotPath));
-      formData.append('caption', `📸 Job Posting Screenshot - ${jobId}`);
-      
-      await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, formData, {
-        headers: formData.getHeaders()
-      });
-      
-      // Clean up screenshot file
-      fs.unlinkSync(screenshotPath);
-      console.log(`✅ Screenshot sent and cleaned up: ${screenshotPath}`);
-    }
+    await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      chat_id: TELEGRAM_CHAT_ID_JOBS,
+      text: jobSummary,
+      parse_mode: "Markdown"
+    });
     
     // 3. Twilio voice call (temporarily disabled)
     console.log("Phone call would be made here:", YOUR_NUMBER);
     
-    console.log("✅ JOB ALERT with screenshot sent to Jobs channel");
+    console.log("✅ JOB ALERT with detailed summary sent to Jobs channel");
     
   } catch (err) {
-    console.error("❌ Error sending job alert with screenshot:", err.message);
+    console.error("❌ Error sending job alert with summary:", err.message);
     // Don't throw - just log and continue
   }
+}
+
+// Keep old function name for compatibility but remove screenshot functionality
+async function sendJobAlertWithScreenshot(message, job) {
+  return await sendJobAlertWithSummary(message, job);
 }
 
 // Legacy function for compatibility
