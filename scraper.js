@@ -51,6 +51,7 @@ const payload = {
 let currentToken = process.env.AMAZON_API_TOKEN || "Bearer Status|unauthenticated|Session|eyJhbGciOiJLTVMiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjE3NTY3MTM5MjAsImV4cCI6MTc1NjcxNzUyMH0.AQICAHidzPmCkg52ERUUfDIMwcDZBDzd+C71CJf6w0t6dq2uqwEODCaeVmQhcMsmUGi60a5GAAAAtDCBsQYJKoZIhvcNAQcGoIGjMIGgAgEAMIGaBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDCwGqBup49tPWjjXegIBEIBtFh3/B62vS74RGoTfb3pk+LiIhxqKzMAsnoc5o6Iq62n7ktkOEXi+W0YJ9cC+WYsNLHiU4KAuP7p3wQQr5jFr4XdP+qo2ueffAlj/OD3f4pWxDFZci8EvMAD4NR/H/8dLDG8lOygv/8E6O8vqWA==";
 
 // Status notification control
+const scriptStartTime = Date.now();
 let lastStatusUpdate = Date.now();
 let totalChecks = 0;
 const STATUS_UPDATE_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours between status updates
@@ -86,7 +87,7 @@ async function checkJobs() {
     } else {
       // Only send status update if 4 hours have passed since last update
       if (currentTime - lastStatusUpdate >= STATUS_UPDATE_INTERVAL) {
-        const uptime = Math.floor((currentTime - Date.now() + (totalChecks * config.CHECK_INTERVAL)) / (60 * 60 * 1000));
+        const uptime = Math.floor((currentTime - scriptStartTime) / (60 * 60 * 1000));
         const statusMsg = `📋 Heartbeat Update\n\n✅ Script running normally\n📈 Checks completed: ${totalChecks}\n⏱️ Uptime: ~${uptime}h\n📅 Last check: ${new Date().toLocaleString('en-CA', { timeZone: 'America/Vancouver' })}\n\n🔍 No jobs found in recent checks - monitoring continues...`;
         console.log("Sending periodic status update...");
         await sendTelegramAlert(statusMsg);
