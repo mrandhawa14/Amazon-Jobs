@@ -4,7 +4,7 @@
 const SEARCH_URL = "https://hiring.amazon.ca/app#/jobSearch";
 
 // How often to check for new jobs (in milliseconds)
-const REFRESH_INTERVAL = 3 * 60 * 1000; // 3 minutes
+const REFRESH_INTERVAL = 1.5 * 60 * 1000; // 1.5 minutes
 
 // Target postal codes to monitor (Richmond, Delta, Vancouver area)
 const TARGET_POSTAL_CODES = [
