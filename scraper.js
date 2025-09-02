@@ -56,6 +56,12 @@ let lastStatusUpdate = Date.now();
 let totalChecks = 0;
 const STATUS_UPDATE_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours between status updates
 
+// Token expiration tracking
+let tokenExpired = false;
+let consecutiveFailures = 0;
+let lastTokenExpiryNotification = 0;
+const TOKEN_EXPIRY_NOTIFICATION_INTERVAL = 24 * 60 * 60 * 1000; // Only notify once per day when expired
+
 // Headers generator function
 function getHeaders() {
   return {
@@ -71,12 +77,35 @@ function getHeaders() {
 
 // Job checker
 async function checkJobs() {
+  // Skip checks if token is known to be expired
+  if (tokenExpired) {
+    const currentTime = Date.now();
+    // Send daily reminder about expired token
+    if (currentTime - lastTokenExpiryNotification >= TOKEN_EXPIRY_NOTIFICATION_INTERVAL) {
+      const reminderMsg = `⏸️ Amazon Job Monitor Paused\n\n🔑 **Token Expired**\n• Monitoring stopped to prevent spam\n• Please update AMAZON_API_TOKEN in Railway\n• Will resume automatically when token is updated\n\n📅 Token expired: ${Math.floor(consecutiveFailures / (24 * 60 / 1.5))} days ago\n🔄 Daily reminder (not spam)`;
+      await sendTelegramAlert(reminderMsg);
+      lastTokenExpiryNotification = currentTime;
+    }
+    console.log("⏸️ Skipping job check - token expired. Update AMAZON_API_TOKEN to resume.");
+    return;
+  }
+
   totalChecks++;
   const currentTime = Date.now();
   
   try {
     const res = await axios.post(GRAPHQL_URL, payload, { headers: getHeaders() });
     const jobs = res.data?.data?.searchJobCardsByLocation?.jobCards || [];
+
+    // Reset failure counter on successful request
+    consecutiveFailures = 0;
+    
+    // If we were previously in expired state, send recovery notification
+    if (tokenExpired) {
+      tokenExpired = false;
+      const recoveryMsg = `✅ Amazon Job Monitor Resumed\n\n🔑 **Token Updated Successfully**\n• Authentication restored\n• Job monitoring resumed\n• System back to normal operation\n\n🔄 Ready to catch new opportunities!`;
+      await sendTelegramAlert(recoveryMsg);
+    }
 
     if (jobs.length > 0) {
       for (const job of jobs) {
@@ -97,14 +126,34 @@ async function checkJobs() {
       }
     }
   } catch (err) {
-    // Always send error notifications immediately
-    const errorMsg = `❌ Error in Amazon Job Monitor\n\n📁 Details: ${err.message}\n📊 Status Code: ${err.response?.status}\n⏰ Time: ${new Date().toLocaleString('en-CA', { timeZone: 'America/Vancouver' })}`;
-    await sendTelegramAlert(errorMsg);
+    consecutiveFailures++;
     
+    // Check if this is a token expiration error
     if (err.response?.status === 403 || err.response?.status === 401) {
-      console.error("🔑 Authentication failed - token may be expired");
-      console.error("💡 To fix: Visit https://hiring.amazon.ca in browser, get new session token from network tab");
+      console.error("🔑 Authentication failed - token expired");
+      
+      // Mark token as expired after 2 consecutive auth failures to avoid false positives
+      if (consecutiveFailures >= 2 && !tokenExpired) {
+        tokenExpired = true;
+        lastTokenExpiryNotification = 0; // Reset to send immediate notification
+        
+        const expirationMsg = `🚨 Amazon Job Monitor - Token Expired\n\n🔑 **Authentication Failed**\n• Amazon API token has expired\n• Job monitoring automatically paused\n• No more error spam - this is the only notification\n\n🔧 **To Fix:**\n1. Visit https://hiring.amazon.ca in browser\n2. Get new session token from network tab\n3. Update AMAZON_API_TOKEN in Railway\n4. System will resume automatically\n\n⏸️ Monitoring paused until token updated`;
+        await sendTelegramAlert(expirationMsg);
+        
+        console.error("⏸️ TOKEN EXPIRED - Pausing job checks. Update AMAZON_API_TOKEN to resume.");
+        return; // Don't send regular error notification
+      }
+    } else {
+      // Reset consecutive failures for non-auth errors
+      consecutiveFailures = 0;
     }
+    
+    // Send regular error notification for non-expiration errors or first failure
+    if (!tokenExpired) {
+      const errorMsg = `❌ Error in Amazon Job Monitor\n\n📁 Details: ${err.message}\n📊 Status Code: ${err.response?.status}\n⏰ Time: ${new Date().toLocaleString('en-CA', { timeZone: 'America/Vancouver' })}`;
+      await sendTelegramAlert(errorMsg);
+    }
+    
     console.error("❌ Error fetching jobs:", err.message);
     console.error("📊 Status:", err.response?.status);
     console.error("📋 Response:", err.response?.data);
