@@ -44,12 +44,13 @@ async function sendJobAlert(message) {
       parse_mode: "Markdown"
     });
 
-    // 2. Twilio voice call
-    await client.calls.create({
-      to: YOUR_NUMBER,
-      from: TWILIO_NUMBER,
-      twiml: `<Response><Say voice="alice">New Amazon warehouse job alert! ${message}</Say></Response>`
-    });
+    // 2. Twilio voice call (temporarily disabled for debugging)
+    console.log("Phone call would be made here:", YOUR_NUMBER);
+    // await client.calls.create({
+    //   to: YOUR_NUMBER,
+    //   from: TWILIO_NUMBER,
+    //   twiml: `<Response><Say voice="alice">New Amazon warehouse job alert! ${message}</Say></Response>`
+    // });
 
     console.log("✅ JOB ALERT sent to Jobs channel + Phone Call");
   } catch (err) {
