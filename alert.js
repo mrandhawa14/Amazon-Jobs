@@ -23,6 +23,12 @@ const client = twilio(TWILIO_SID, TWILIO_AUTH);
 // Send Telegram message to STATUS channel (for status updates)
 async function sendTelegramAlert(message) {
   try {
+    // Validate required variables
+    if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID_STATUS) {
+      console.log("⚠️ Missing Telegram config, skipping status alert");
+      return;
+    }
+    
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       chat_id: TELEGRAM_CHAT_ID_STATUS,
       text: `🤖 Amazon Job Monitor\n${message}`,
@@ -31,12 +37,19 @@ async function sendTelegramAlert(message) {
     console.log("✅ Status sent to Status channel");
   } catch (err) {
     console.error("❌ Error sending status alert:", err.message);
+    // Don't throw - just log and continue
   }
 }
 
 // Send both Telegram to JOBS channel + Phone call (for actual job alerts)
 async function sendJobAlert(message) {
   try {
+    // Validate required variables
+    if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID_JOBS) {
+      console.log("⚠️ Missing Telegram config, skipping job alert");
+      return;
+    }
+    
     // 1. Telegram message to JOBS channel
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       chat_id: TELEGRAM_CHAT_ID_JOBS,
@@ -55,6 +68,7 @@ async function sendJobAlert(message) {
     console.log("✅ JOB ALERT sent to Jobs channel + Phone Call");
   } catch (err) {
     console.error("❌ Error sending job alert:", err.message);
+    // Don't throw - just log and continue
   }
 }
 
