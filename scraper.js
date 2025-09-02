@@ -31,7 +31,6 @@ const payload = {
       equalFilters: [],
       containFilters: [
         { key: "isPrivateSchedule", val: ["false"] },
-        { key: "jobType", val: ["Part-time"] },
         { key: "scheduleShift", val: ["EarlyMorning","Daytime","Evening","Night","Weekday","Weekend"] },
         { key: "jobTitle", val: [
           "Amazon Fulfilment Centre Warehouse Associate",
