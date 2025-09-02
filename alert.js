@@ -1,5 +1,8 @@
 const axios = require("axios");
 const twilio = require("twilio");
+const { chromium } = require('playwright');
+const fs = require('fs');
+const FormData = require('form-data');
 require('dotenv').config();
 
 // === TELEGRAM CONFIG ===
@@ -72,9 +75,90 @@ async function sendJobAlert(message) {
   }
 }
 
+// Take screenshot of job posting
+async function takeJobScreenshot(jobId) {
+  let browser;
+  try {
+    console.log(`📸 Taking screenshot for job ${jobId}`);
+    
+    browser = await chromium.launch({ 
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'] // Railway compatibility
+    });
+    
+    const page = await browser.newPage();
+    const jobUrl = `https://hiring.amazon.ca/app#/jobDetail/${jobId}`;
+    
+    await page.goto(jobUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(3000); // Wait for dynamic content
+    
+    const screenshot = await page.screenshot({ 
+      path: `job-${jobId}.png`,
+      fullPage: true,
+      type: 'png'
+    });
+    
+    console.log(`✅ Screenshot saved: job-${jobId}.png`);
+    return `job-${jobId}.png`;
+    
+  } catch (err) {
+    console.error(`❌ Screenshot failed for job ${jobId}:`, err.message);
+    return null;
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+}
+
+// Send job alert with screenshot
+async function sendJobAlertWithScreenshot(message, jobId) {
+  try {
+    // Validate required variables
+    if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID_JOBS) {
+      console.log("⚠️ Missing Telegram config, skipping job alert");
+      return;
+    }
+    
+    // 1. Send text message first
+    await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      chat_id: TELEGRAM_CHAT_ID_JOBS,
+      text: `🚨 Amazon Job Alert 🚨\n${message}`,
+      parse_mode: "Markdown"
+    });
+    
+    // 2. Take and send screenshot
+    const screenshotPath = await takeJobScreenshot(jobId);
+    
+    if (screenshotPath && fs.existsSync(screenshotPath)) {
+      const formData = new FormData();
+      formData.append('chat_id', TELEGRAM_CHAT_ID_JOBS);
+      formData.append('photo', fs.createReadStream(screenshotPath));
+      formData.append('caption', `📸 Job Posting Screenshot - ${jobId}`);
+      
+      await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, formData, {
+        headers: formData.getHeaders()
+      });
+      
+      // Clean up screenshot file
+      fs.unlinkSync(screenshotPath);
+      console.log(`✅ Screenshot sent and cleaned up: ${screenshotPath}`);
+    }
+    
+    // 3. Twilio voice call (temporarily disabled)
+    console.log("Phone call would be made here:", YOUR_NUMBER);
+    
+    console.log("✅ JOB ALERT with screenshot sent to Jobs channel");
+    
+  } catch (err) {
+    console.error("❌ Error sending job alert with screenshot:", err.message);
+    // Don't throw - just log and continue
+  }
+}
+
 // Legacy function for compatibility
 async function sendAlert(message) {
   return await sendTelegramAlert(message);
 }
 
-module.exports = { sendAlert, sendTelegramAlert, sendJobAlert };
+module.exports = { sendAlert, sendTelegramAlert, sendJobAlert, sendJobAlertWithScreenshot };

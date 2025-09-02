@@ -1,6 +1,6 @@
 // scraper.js
 const axios = require("axios");
-const { sendJobAlert, sendTelegramAlert } = require("./alert");
+const { sendJobAlert, sendTelegramAlert, sendJobAlertWithScreenshot } = require("./alert");
 const config = require("./config");
 
 // GraphQL endpoint
@@ -82,7 +82,7 @@ async function checkJobs() {
       for (const job of jobs) {
         const msg = `🚨 ${job.jobTitle} - ${job.locationName} (${job.city})\n💼 Type: ${job.employmentType}\n💰 Pay: $${job.totalPayRateMin}-${job.totalPayRateMax}/hour\n🆔 Job ID: ${job.jobId}\n\n🔗 Apply: https://hiring.amazon.ca/app#/jobDetail/${job.jobId}`;
         console.log(msg);
-        await sendJobAlert(msg); // Telegram + Phone alert for jobs
+        await sendJobAlertWithScreenshot(msg, job.jobId); // Telegram + Screenshot + Phone alert
       }
     } else {
       // Only send status update if 4 hours have passed since last update
