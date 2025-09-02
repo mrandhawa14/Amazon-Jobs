@@ -71,14 +71,10 @@ function getHeaders() {
 
 // Job checker
 async function checkJobs() {
-  console.log(`🔍 DEBUG: Starting job check #${totalChecks + 1}`);
   totalChecks++;
   const currentTime = Date.now();
   
   try {
-    console.log(`🔍 DEBUG: About to make API call to ${GRAPHQL_URL}`);
-    console.log(`🔍 DEBUG: Using token: ${currentToken.substring(0, 50)}...`);
-    console.log(`🔍 DEBUG: Memory usage:`, process.memoryUsage());
     const res = await axios.post(GRAPHQL_URL, payload, { headers: getHeaders() });
     const jobs = res.data?.data?.searchJobCardsByLocation?.jobCards || [];
 
@@ -118,7 +114,7 @@ async function checkJobs() {
 // Send startup notification
 async function sendStartupNotification() {
   try {
-    const startupMsg = `🟢 Amazon Job Monitor Started\n\n📊 **Configuration:**\n• Check interval: ${config.CHECK_INTERVAL / 1000}s\n• Monitoring: Richmond, Delta, Vancouver area\n• Job types: Any employment type\n\n⏰ Started at: ${new Date().toLocaleString('en-CA', { timeZone: 'America/Vancouver' })}`;
+    const startupMsg = `✅ Amazon Job Monitor Running Smoothly\n\n📊 **System Status:**\n• Check interval: ${config.CHECK_INTERVAL / 1000}s\n• Monitoring: Richmond, Delta, Vancouver area\n• Job types: Any employment type\n• Platform: Railway (auto-restart enabled)\n\n⏰ Last refresh: ${new Date().toLocaleString('en-CA', { timeZone: 'America/Vancouver' })}`;
     await sendTelegramAlert(startupMsg);
   } catch (err) {
     console.log("Startup notification failed, but continuing...", err.message);
