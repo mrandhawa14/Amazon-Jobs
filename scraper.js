@@ -62,6 +62,38 @@ let consecutiveFailures = 0;
 let lastTokenExpiryNotification = 0;
 const TOKEN_EXPIRY_NOTIFICATION_INTERVAL = 24 * 60 * 60 * 1000; // Only notify once per day when expired
 
+// Job validation function to filter out phantom/corrupt jobs
+function isValidJob(job) {
+  // Check for required fields
+  if (!job.jobId || !job.jobTitle || !job.locationName) {
+    return false;
+  }
+  
+  // Check for corrupted pay rates
+  if (!job.totalPayRateMin || !job.totalPayRateMax || 
+      job.totalPayRateMin > 1000 || job.totalPayRateMax > 1000 || 
+      job.totalPayRateMin <= 0 || job.totalPayRateMax <= 0) {
+    return false;
+  }
+  
+  // Check for suspicious job IDs (known phantom jobs)
+  if (job.jobId === 'JOB-CA-0000000354') {
+    return false; // This specific job ID is confirmed phantom
+  }
+  
+  // Check for missing or suspicious location data
+  if (!job.city || job.city === 'null' || job.locationName.includes('null')) {
+    return false;
+  }
+  
+  // Check for reasonable employment type
+  if (job.employmentType && job.employmentType.length > 50) {
+    return false; // Unusually long employment type suggests corruption
+  }
+  
+  return true; // Job passes all validation checks
+}
+
 // Headers generator function
 function getHeaders() {
   return {
@@ -108,10 +140,22 @@ async function checkJobs() {
     }
 
     if (jobs.length > 0) {
+      let validJobs = 0;
+      
       for (const job of jobs) {
-        const msg = `🚨 ${job.jobTitle} - ${job.locationName} (${job.city})\n💼 Type: ${job.employmentType}\n💰 Pay: $${job.totalPayRateMin}-${job.totalPayRateMax}/hour\n🆔 Job ID: ${job.jobId}\n\n🔗 Apply: https://hiring.amazon.ca/app#/jobDetail/${job.jobId}`;
-        console.log(msg);
-        await sendJobAlertWithScreenshot(msg, job); // Telegram + Text Summary + Phone alert
+        // Validate job data to filter out phantom/corrupt jobs
+        if (isValidJob(job)) {
+          const msg = `🚨 ${job.jobTitle} - ${job.locationName} (${job.city})\n💼 Type: ${job.employmentType}\n💰 Pay: $${job.totalPayRateMin}-${job.totalPayRateMax}/hour\n🆔 Job ID: ${job.jobId}\n\n🔗 Apply: https://hiring.amazon.ca/app#/jobDetail/${job.jobId}`;
+          console.log(msg);
+          await sendJobAlertWithScreenshot(msg, job); // Telegram + Text Summary + Phone alert
+          validJobs++;
+        } else {
+          console.log(`⚠️ Skipping invalid/phantom job: ${job.jobId} - ${job.jobTitle}`);
+        }
+      }
+      
+      if (validJobs === 0) {
+        console.log(`🛡️ Found ${jobs.length} job(s) but all were invalid/phantom - no alerts sent`);
       }
     } else {
       // Only send status update if 4 hours have passed since last update
