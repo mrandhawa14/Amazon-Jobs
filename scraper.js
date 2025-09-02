@@ -80,7 +80,7 @@ async function checkJobs() {
 
     if (jobs.length > 0) {
       for (const job of jobs) {
-        const msg = `🚨 ${job.jobTitle} - ${job.locationName} (${job.city})\n💼 Type: ${job.employmentType}\n💰 Pay: $${job.totalPayRateMin}-${job.totalPayRateMax}`;
+        const msg = `🚨 ${job.jobTitle} - ${job.locationName} (${job.city})\n💼 Type: ${job.employmentType}\n💰 Pay: $${job.totalPayRateMin}-${job.totalPayRateMax}/hour\n🆔 Job ID: ${job.jobId}\n\n🔗 Apply: https://hiring.amazon.ca/app#/jobDetail/${job.jobId}`;
         console.log(msg);
         await sendJobAlert(msg); // Telegram + Phone alert for jobs
       }
