@@ -71,10 +71,14 @@ function getHeaders() {
 
 // Job checker
 async function checkJobs() {
+  console.log(`🔍 DEBUG: Starting job check #${totalChecks + 1}`);
   totalChecks++;
   const currentTime = Date.now();
   
   try {
+    console.log(`🔍 DEBUG: About to make API call to ${GRAPHQL_URL}`);
+    console.log(`🔍 DEBUG: Using token: ${currentToken.substring(0, 50)}...`);
+    console.log(`🔍 DEBUG: Memory usage:`, process.memoryUsage());
     const res = await axios.post(GRAPHQL_URL, payload, { headers: getHeaders() });
     const jobs = res.data?.data?.searchJobCardsByLocation?.jobCards || [];
 
