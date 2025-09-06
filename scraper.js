@@ -36,7 +36,9 @@ const payload = {
           "Amazon Fulfilment Centre Warehouse Associate",
           "Amazon Sortation Center Warehouse Associate",
           "Amazon Delivery Station Warehouse Associate"
-        ]}
+        ]},
+        // Add location filtering to GraphQL query (primary filter)
+        { key: "city", val: config.TARGET_LOCATIONS }
       ],
       dateFilters: [
         { key: "firstDayOnSite", range: { startDate: "2025-09-01" } }
@@ -94,6 +96,30 @@ function isValidJob(job) {
   return true; // Job passes all validation checks
 }
 
+// Location filtering function - CRITICAL FIX for NS alerts issue
+function isTargetLocation(job) {
+  const jobCity = job.city ? job.city.toLowerCase() : '';
+  const jobLocation = job.locationName ? job.locationName.toLowerCase() : '';
+  
+  // Check if job location matches any target location
+  for (const targetLocation of config.TARGET_LOCATIONS) {
+    const target = targetLocation.toLowerCase();
+    if (jobCity.includes(target) || jobLocation.includes(target)) {
+      return true;
+    }
+  }
+  
+  // Check if job location matches any target postal codes
+  for (const postalCode of config.TARGET_POSTAL_CODES) {
+    if (jobLocation.includes(postalCode.toLowerCase())) {
+      return true;
+    }
+  }
+  
+  console.log(`🚫 Job ${job.jobId} filtered out - location '${job.locationName}, ${job.city}' not in target areas`);
+  return false;
+}
+
 // Headers generator function
 function getHeaders() {
   return {
@@ -145,10 +171,15 @@ async function checkJobs() {
       for (const job of jobs) {
         // Validate job data to filter out phantom/corrupt jobs
         if (isValidJob(job)) {
-          const msg = `🚨 ${job.jobTitle} - ${job.locationName} (${job.city})\n💼 Type: ${job.employmentType}\n💰 Pay: $${job.totalPayRateMin}-${job.totalPayRateMax}/hour\n🆔 Job ID: ${job.jobId}\n\n🔗 Apply: https://hiring.amazon.ca/app#/jobDetail/${job.jobId}`;
-          console.log(msg);
-          await sendJobAlertWithScreenshot(msg, job); // Telegram + Text Summary + Phone alert
-          validJobs++;
+          // CRITICAL: Check if job is in target location (fixes NS alerts bug)
+          if (isTargetLocation(job)) {
+            const msg = `🚨 ${job.jobTitle} - ${job.locationName} (${job.city})\n💼 Type: ${job.employmentType}\n💰 Pay: $${job.totalPayRateMin}-${job.totalPayRateMax}/hour\n🆔 Job ID: ${job.jobId}\n\n🔗 Apply: https://hiring.amazon.ca/app#/jobDetail/${job.jobId}`;
+            console.log(msg);
+            await sendJobAlertWithScreenshot(msg, job); // Telegram + Text Summary + Phone alert
+            validJobs++;
+          } else {
+            console.log(`📍 Skipping job outside target area: ${job.jobId} - ${job.locationName}, ${job.city}`);
+          }
         } else {
           console.log(`⚠️ Skipping invalid/phantom job: ${job.jobId} - ${job.jobTitle}`);
         }

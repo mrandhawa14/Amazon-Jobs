@@ -60,13 +60,18 @@ async function sendJobAlert(message) {
       parse_mode: "Markdown"
     });
 
-    // 2. Twilio voice call (temporarily disabled for debugging)
-    console.log("Phone call would be made here:", YOUR_NUMBER);
-    // await client.calls.create({
-    //   to: YOUR_NUMBER,
-    //   from: TWILIO_NUMBER,
-    //   twiml: `<Response><Say voice="alice">New Amazon warehouse job alert! ${message}</Say></Response>`
-    // });
+    // 2. Twilio voice call
+    if (TWILIO_SID && TWILIO_AUTH && TWILIO_NUMBER && YOUR_NUMBER) {
+      console.log("Making phone call to:", YOUR_NUMBER);
+      await client.calls.create({
+        to: YOUR_NUMBER,
+        from: TWILIO_NUMBER,
+        twiml: `<Response><Say voice="alice">New Amazon warehouse job alert! Check your phone for details.</Say></Response>`
+      });
+      console.log("✅ Phone call initiated");
+    } else {
+      console.log("⚠️ Twilio config incomplete, skipping phone call");
+    }
 
     console.log("✅ JOB ALERT sent to Jobs channel + Phone Call");
   } catch (err) {
@@ -138,8 +143,18 @@ async function sendJobAlertWithSummary(message, job) {
       parse_mode: "Markdown"
     });
     
-    // 3. Twilio voice call (temporarily disabled)
-    console.log("Phone call would be made here:", YOUR_NUMBER);
+    // 3. Twilio voice call
+    if (TWILIO_SID && TWILIO_AUTH && TWILIO_NUMBER && YOUR_NUMBER) {
+      console.log("Making phone call to:", YOUR_NUMBER);
+      await client.calls.create({
+        to: YOUR_NUMBER,
+        from: TWILIO_NUMBER,
+        twiml: `<Response><Say voice="alice">New Amazon warehouse job alert! Check your telegram for full details.</Say></Response>`
+      });
+      console.log("✅ Phone call initiated");
+    } else {
+      console.log("⚠️ Twilio config incomplete, skipping phone call");
+    }
     
     console.log("✅ JOB ALERT with detailed summary sent to Jobs channel");
     
