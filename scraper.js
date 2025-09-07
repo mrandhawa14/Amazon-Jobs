@@ -173,7 +173,22 @@ async function checkJobs() {
         if (isValidJob(job)) {
           // CRITICAL: Check if job is in target location (fixes NS alerts bug)
           if (isTargetLocation(job)) {
-            const msg = `🚨 ${job.jobTitle} - ${job.locationName} (${job.city})\n💼 Type: ${job.employmentType}\n💰 Pay: $${job.totalPayRateMin}-${job.totalPayRateMax}/hour\n🆔 Job ID: ${job.jobId}\n\n🔗 Apply: https://hiring.amazon.ca/app#/jobDetail/${job.jobId}`;
+            const msg = `📋 POSITION INFORMATION:
+• Title: ${job.jobTitle}
+• Type: ${job.employmentType || 'Not specified'}
+• Location: ${job.locationName}, ${job.city || 'Unknown'}
+• Job ID: ${job.jobId}
+
+💰 COMPENSATION:
+• Pay Rate: $${job.totalPayRateMin}-${job.totalPayRateMax}/hour
+
+🔗 Apply: 
+• Apply directly: https://hiring.amazon.ca/app#/jobDetail?jobId=${job.jobId}&locale=en-CA&fromVanity=1
+• Application deadline: Typically 1-2 minutes from posting
+
+⚠️ NOTE: Amazon jobs often disappear quickly.
+• Apply immediately for best chances
+• Complete application in one session`;
             console.log(msg);
             await sendJobAlertWithScreenshot(msg, job); // Telegram + Text Summary + Phone alert
             validJobs++;
