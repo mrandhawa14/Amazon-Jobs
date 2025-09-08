@@ -1,6 +1,6 @@
 // scraper.js
 const axios = require("axios");
-const { sendJobAlert, sendTelegramAlert, sendJobAlertWithScreenshot } = require("./alert");
+const { sendJobAlert, sendTelegramAlert } = require("./alert");
 const config = require("./config");
 
 // GraphQL endpoint
@@ -190,7 +190,7 @@ async function checkJobs() {
 • Apply immediately for best chances
 • Complete application in one session`;
             console.log(msg);
-            await sendJobAlertWithScreenshot(msg, job); // Telegram + Text Summary + Phone alert
+            await sendJobAlert(msg); // Telegram + Phone alert
             validJobs++;
           } else {
             console.log(`📍 Skipping job outside target area: ${job.jobId} - ${job.locationName}, ${job.city}`);
