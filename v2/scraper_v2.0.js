@@ -1,6 +1,6 @@
 const axios = require("axios");
-const { sendJobAlertDedup, sendTelegramAlert } = require("./alert");
-const config = require("./config");
+const { sendJobAlertDedup, sendTelegramAlert } = require("./alert_v2.0");
+const config = require("./config_v2.0");
 
 // GraphQL endpoint
 const GRAPHQL_URL = "https://e5mquma77feepi2bdn4d6h3mpu.appsync-api.us-east-1.amazonaws.com/graphql";

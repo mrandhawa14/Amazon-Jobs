@@ -1,36 +1,27 @@
+// alert_v2.0.js (simplified for single channel)
+require('dotenv').config();
 const axios = require("axios");
 const twilio = require("twilio");
-require('dotenv').config();
 
 // === TELEGRAM CONFIG ===
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID_JOBS = process.env.TELEGRAM_CHAT_ID_JOBS || "-1002985301415";
+const TELEGRAM_CHAT_ID_JOBS = Number(process.env.TELEGRAM_CHAT_ID_V2); // single channel
 const TELEGRAM_CHAT_ID_STATUS = process.env.TELEGRAM_CHAT_ID_STATUS || "-1003011417488";
-
-// Fallback to old single channel if new ones not set
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 // === TWILIO CONFIG ===
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 const YOUR_NUMBER = process.env.YOUR_PHONE_NUMBER;
-
 const client = twilio(TWILIO_SID, TWILIO_AUTH);
 
 // === ALERT STATE ===
 const sentJobs = new Set();
 
-// === ALERT FUNCTIONS ===
-
 // Send Telegram message to STATUS channel
 async function sendTelegramAlert(message) {
   try {
-    if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID_STATUS) {
-      console.log("⚠️ Missing Telegram config, skipping status alert");
-      return;
-    }
-
+    if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID_STATUS) return;
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       chat_id: TELEGRAM_CHAT_ID_STATUS,
       text: `🤖 Amazon Job Monitor\n${message}`,
@@ -42,22 +33,26 @@ async function sendTelegramAlert(message) {
   }
 }
 
-// Send job alerts (Telegram + optional Twilio call)
-async function sendJobAlert(message, chatIds = [TELEGRAM_CHAT_ID_JOBS]) {
+// Send job alert to single Telegram channel + optional Twilio call
+async function sendJobAlert(message) {
   try {
-    if (!TELEGRAM_TOKEN || !chatIds.length) {
+    if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID_JOBS) {
       console.log("⚠️ Missing Telegram config, skipping job alert");
       return;
     }
 
-    for (const id of chatIds) {
-      await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-        chat_id: id,
-        text: `🚨 Amazon Job Alert 🚨\n${message}`,
-        parse_mode: "Markdown"
-      });
-    }
+    console.log("📤 Sending job alert to chat_id:", TELEGRAM_CHAT_ID_JOBS);
+    console.log("📤 Message content:", message);
 
+    await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      chat_id: TELEGRAM_CHAT_ID_JOBS,
+      text: `🚨 Amazon Job Alert 🚨\n${message}`,
+      parse_mode: "Markdown"
+    });
+
+    console.log(`✅ Job alert sent to ${TELEGRAM_CHAT_ID_JOBS}`);
+
+    // Optional Twilio call
     if (TWILIO_SID && TWILIO_AUTH && TWILIO_NUMBER && YOUR_NUMBER) {
       console.log("Making phone call to:", YOUR_NUMBER);
       await client.calls.create({
@@ -69,21 +64,19 @@ async function sendJobAlert(message, chatIds = [TELEGRAM_CHAT_ID_JOBS]) {
     } else {
       console.log("⚠️ Twilio config incomplete, skipping phone call");
     }
-
-    console.log("✅ JOB ALERT sent");
   } catch (err) {
-    console.error("❌ Error sending job alert:", err.message);
+    console.error("❌ Error in sendJobAlert:", err.message);
   }
 }
 
 // Deduplicated job alert
-async function sendJobAlertDedup(message, jobId, chatIds) {
+async function sendJobAlertDedup(message, jobId) {
   if (sentJobs.has(jobId)) {
     console.log("⚠️ Duplicate job alert skipped:", jobId);
     return;
   }
   sentJobs.add(jobId);
-  await sendJobAlert(message, chatIds);
+  await sendJobAlert(message);
 }
 
 // Legacy wrapper for status
