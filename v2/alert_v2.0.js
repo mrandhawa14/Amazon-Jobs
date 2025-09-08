@@ -18,16 +18,19 @@ const YOUR_NUMBER = process.env.YOUR_PHONE_NUMBER;
 
 const client = twilio(TWILIO_SID, TWILIO_AUTH);
 
+// === ALERT STATE ===
+const sentJobs = new Set();
+
 // === ALERT FUNCTIONS ===
 
-// Send Telegram message to STATUS channel (for status updates)
+// Send Telegram message to STATUS channel
 async function sendTelegramAlert(message) {
   try {
     if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID_STATUS) {
       console.log("⚠️ Missing Telegram config, skipping status alert");
       return;
     }
-    
+
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       chat_id: TELEGRAM_CHAT_ID_STATUS,
       text: `🤖 Amazon Job Monitor\n${message}`,
@@ -39,22 +42,22 @@ async function sendTelegramAlert(message) {
   }
 }
 
-// Send both Telegram to JOBS channel + Phone call (for actual job alerts)
-async function sendJobAlert(message) {
+// Send job alerts (Telegram + optional Twilio call)
+async function sendJobAlert(message, chatIds = [TELEGRAM_CHAT_ID_JOBS]) {
   try {
-    if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID_JOBS) {
+    if (!TELEGRAM_TOKEN || !chatIds.length) {
       console.log("⚠️ Missing Telegram config, skipping job alert");
       return;
     }
-    
-    // 1. Telegram message to JOBS channel
-    await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-      chat_id: TELEGRAM_CHAT_ID_JOBS,
-      text: `🚨 Amazon Job Alert 🚨\n${message}`,
-      parse_mode: "Markdown"
-    });
 
-    // 2. Twilio voice call
+    for (const id of chatIds) {
+      await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+        chat_id: id,
+        text: `🚨 Amazon Job Alert 🚨\n${message}`,
+        parse_mode: "Markdown"
+      });
+    }
+
     if (TWILIO_SID && TWILIO_AUTH && TWILIO_NUMBER && YOUR_NUMBER) {
       console.log("Making phone call to:", YOUR_NUMBER);
       await client.calls.create({
@@ -67,19 +70,31 @@ async function sendJobAlert(message) {
       console.log("⚠️ Twilio config incomplete, skipping phone call");
     }
 
-    console.log("✅ JOB ALERT sent to Jobs channel + Phone Call");
+    console.log("✅ JOB ALERT sent");
   } catch (err) {
     console.error("❌ Error sending job alert:", err.message);
   }
 }
 
-// Legacy function for compatibility
+// Deduplicated job alert
+async function sendJobAlertDedup(message, jobId, chatIds) {
+  if (sentJobs.has(jobId)) {
+    console.log("⚠️ Duplicate job alert skipped:", jobId);
+    return;
+  }
+  sentJobs.add(jobId);
+  await sendJobAlert(message, chatIds);
+}
+
+// Legacy wrapper for status
 async function sendAlert(message) {
   return await sendTelegramAlert(message);
 }
-async function sendJobAlertWithScreenshot(message, job) {
-  return await sendJobAlert(message);
-}
 
-module.exports = { sendAlert, sendTelegramAlert, sendJobAlert, sendJobAlertWithScreenshot };
-module.exports = { sendAlert, sendTelegramAlert, sendJobAlert };
+// === EXPORTS ===
+module.exports = {
+  sendAlert,
+  sendTelegramAlert,
+  sendJobAlert,
+  sendJobAlertDedup
+};
